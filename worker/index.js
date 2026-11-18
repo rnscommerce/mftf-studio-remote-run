@@ -4,9 +4,19 @@ import { Container } from '@cloudflare/containers';
 
 const json = (body, status = 200) => Response.json(body, { status });
 
+// Compared in constant time, so how long a refusal takes says nothing about the key.
+const signedIn = (request, key) => {
+  if (!key) return false;
+  const sent = new TextEncoder().encode(request.headers.get('Authorization') ?? '');
+  const expected = new TextEncoder().encode(`Bearer ${key}`);
+  return sent.byteLength === expected.byteLength
+    ? crypto.subtle.timingSafeEqual(sent, expected)
+    : !crypto.subtle.timingSafeEqual(expected, expected);
+};
+
 export default {
   async fetch(request, env) {
-    if (!env.API_KEY || request.headers.get('Authorization') !== `Bearer ${env.API_KEY}`) return json({ error: 'Unauthorized' }, 401);
+    if (!signedIn(request, env.API_KEY)) return json({ error: 'Unauthorized' }, 401);
     const [, resource, id, tail] = new URL(request.url).pathname.split('/');
 
     if (resource === 'bundles' && id) {
