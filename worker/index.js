@@ -1,14 +1,22 @@
 // Control plane, all of it: a Worker as the door, and one Durable Object per
-// run that owns the run's container, keeps its log, and writes its usage.
+// run that owns the run's container and keeps its log.
 import { Container } from '@cloudflare/containers';
 
 const json = (body, status = 200) => Response.json(body, { status });
 
-const LEDGER = 'CREATE TABLE IF NOT EXISTS usage (run TEXT PRIMARY KEY, started INTEGER, ended INTEGER, seconds REAL, code INTEGER)';
+// Compared in constant time, so how long a refusal takes says nothing about the key.
+const signedIn = (request, key) => {
+  if (!key) return false;
+  const sent = new TextEncoder().encode(request.headers.get('Authorization') ?? '');
+  const expected = new TextEncoder().encode(`Bearer ${key}`);
+  return sent.byteLength === expected.byteLength
+    ? crypto.subtle.timingSafeEqual(sent, expected)
+    : !crypto.subtle.timingSafeEqual(expected, expected);
+};
 
 export default {
   async fetch(request, env) {
-    if (!env.RUN_TOKEN || request.headers.get('Authorization') !== `Bearer ${env.RUN_TOKEN}`) return json({ error: 'Unauthorized' }, 401);
+    if (!signedIn(request, env.API_KEY)) return json({ error: 'Unauthorized' }, 401);
     const [, resource, id, tail] = new URL(request.url).pathname.split('/');
 
     if (resource === 'bundles' && id) {
@@ -27,11 +35,6 @@ export default {
       return results ? new Response(results.body) : json({ error: 'No results' }, 404);
     }
     if (resource === 'runs' && id && tail !== 'start') return env.RUNS.get(env.RUNS.idFromName(id)).fetch(request);
-    if (resource === 'usage') {
-      await env.LEDGER.exec(LEDGER);
-      const { results } = await env.LEDGER.prepare('SELECT * FROM usage ORDER BY started').all();
-      return json(results);
-    }
     return json({ error: 'Not found' }, 404);
   },
 };
@@ -87,14 +90,15 @@ export class Run extends Container {
     }
 
     // Asks the run to end; the container says so itself once it has, and the
-    // run is finished and metered the way one that ran to its end is.
+    // run is finished the way one that ran to its end is.
     if (tail === 'stop') {
       if (!this.event('ended') && this.ctx.container.running) await this.send('/stop', { method: 'POST' });
       return json({});
     }
 
     if (request.headers.get('Upgrade') !== 'websocket') {
-      return json({ events: this.count(), ended: Boolean(this.event('ended')) });
+      const ended = this.event('ended');
+      return json({ events: this.count(), ended: Boolean(ended), code: ended?.code ?? null });
     }
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
@@ -132,7 +136,7 @@ export class Run extends Container {
   }
 
   // The container went with the run still going: the run ends as one that
-  // could not run, with no results and nothing written to the ledger.
+  // could not run, with no results.
   lost() {
     if (this.event('ended')) return;
     const say = (event) => this.hold(JSON.stringify({ n: this.count(), at: Date.now(), ...event }));
@@ -156,12 +160,6 @@ export class Run extends Container {
       const results = await this.send('/results');
       if (results.ok) await this.env.FILES.put(`runs/${id}/results.tgz`, await results.arrayBuffer());
     }
-    const started = this.event('started').at;
-    const ended = this.event('ended').at;
-    await this.env.LEDGER.exec(LEDGER);
-    await this.env.LEDGER.prepare('INSERT OR IGNORE INTO usage VALUES (?, ?, ?, ?, ?)')
-      .bind(id, started, ended, (ended - started) / 1000, this.event('ended').code)
-      .run();
     this.ctx.storage.kv.put('finished', true);
     await this.stop();
   }
