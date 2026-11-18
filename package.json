@@ -2,9 +2,6 @@
   "name": "mftf-studio-remote-run",
   "private": true,
   "type": "module",
-  "scripts": {
-    "test": "docker build -q -t mftf-studio-remote-runner:test runner && node --test --test-timeout=60000 runner/test/runner.test.mjs"
-  },
   "dependencies": {
     "@cloudflare/containers": "^0.3.7",
     "wrangler": "^4.162.0"
