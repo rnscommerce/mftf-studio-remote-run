@@ -2,7 +2,7 @@
   "name": "mftf-studio-remote-run",
   "main": "worker/index.js",
   "compatibility_date": "2026-10-01",
-  "containers": [{ "class_name": "Run", "image": "./runner/Dockerfile", "max_instances": 5, "instance_type": "basic" }],
+  "containers": [{ "class_name": "Run", "image": "docker.io/rnscommerce/mftf-studio-runner:0.1.0", "max_instances": 5, "instance_type": "basic" }],
   "durable_objects": { "bindings": [{ "name": "RUNS", "class_name": "Run" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Run"] }],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "mftf-studio-remote-run" }],

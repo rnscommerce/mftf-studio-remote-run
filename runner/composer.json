@@ -1,7 +1,0 @@
-{
-    "name": "rnscommerce/mftf-studio-remote-runner",
-    "require": {
-        "react/http": "^1.11",
-        "react/child-process": "^0.6"
-    }
-}
