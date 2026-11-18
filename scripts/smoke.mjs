@@ -1,8 +1,8 @@
-// One run through a deployed service, start to usage row, with no MFTF test
+// One run through a deployed service, start to results, with no MFTF test
 // and no browser: the actor is built as for any run, and the bundle's
 // studio-job.php then leaves as Codeception's own run begins.
 //   CONTROL  where the service answers
-//   RUN_TOKEN  what it lets in
+//   API_KEY  what it lets in
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -10,11 +10,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-const { CONTROL, RUN_TOKEN } = process.env;
+const { CONTROL, API_KEY } = process.env;
 const CEST = 'generated/_generated/default/SmokeCest.php';
 const CODE = 3;
 const call = (pathname, init = {}) =>
-  fetch(`${CONTROL}${pathname}`, { ...init, headers: { Authorization: `Bearer ${RUN_TOKEN}` }, signal: AbortSignal.timeout(60_000) });
+  fetch(`${CONTROL}${pathname}`, { ...init, headers: { Authorization: `Bearer ${API_KEY}` }, signal: AbortSignal.timeout(60_000) });
 
 const dir = mkdtempSync(path.join(tmpdir(), 'smoke-'));
 const files = {
@@ -43,17 +43,21 @@ for (let tried = 0; id === undefined; tried++) {
   if (id === undefined) await pause(5000);
 }
 
-// The usage row is the last thing a run leaves, after its results.
-let usage;
-for (let tried = 0; usage === undefined; tried++) {
-  assert.ok(tried < 60, 'the run is finished within two minutes');
+let run;
+for (let tried = 0; !run?.ended; tried++) {
+  assert.ok(tried < 60, 'the run ends within two minutes');
   await pause(2000);
-  usage = (await (await call('/usage')).json()).find((row) => row.run === id);
+  run = await (await call(`/runs/${id}`)).json();
 }
-assert.equal(usage.code, CODE, 'the usage row holds the run\'s exit code');
+assert.equal(run.code, CODE, 'the run ends with its exit code');
 
-const results = await call(`/runs/${id}/results`);
-assert.ok(results.ok, 'the results are stored');
+// The results are stored just after the run says it has ended.
+let results;
+for (let tried = 0; !results?.ok; tried++) {
+  assert.ok(tried < 30, 'the results are stored within a minute');
+  if (tried > 0) await pause(2000);
+  results = await call(`/runs/${id}/results`);
+}
 const listed = execFileSync('tar', ['tzf', '-'], { input: Buffer.from(await results.arrayBuffer()), encoding: 'utf8' });
 assert.match(listed, /^\.\/smoke$/m, 'the results hold what the run wrote');
-console.log(`run ${id} ended with ${usage.code} after ${usage.seconds} s`);
+console.log(`run ${id} ended with ${run.code}`);

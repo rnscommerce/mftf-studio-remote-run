@@ -1,5 +1,4 @@
 .dev.vars
 .wrangler/
 node_modules/
-.run-token
 runner/vendor
