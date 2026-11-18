@@ -3,7 +3,7 @@
 Runs MFTF Studio's tests on your own Cloudflare account. A run carries on when
 Studio closes, and Studio picks it up again when it opens.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/rnscommerce/mftf-studio-remote-run)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/rnscommerce/mftf-studio-remote-run-cloudflare)
 
 ## Before you install
 
