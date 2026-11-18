@@ -9,7 +9,7 @@ jobs:
   check:
     # Copies made by the Deploy button get this file too; they deploy through
     # Cloudflare and have nothing to check here.
-    if: github.repository == 'rnscommerce/mftf-studio-remote-run'
+    if: github.repository == 'rnscommerce/mftf-studio-remote-run-cloudflare'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
