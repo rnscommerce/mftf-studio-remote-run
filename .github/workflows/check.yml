@@ -19,4 +19,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --check worker/index.js && node --check scripts/smoke.mjs
+      - run: node scripts/runner-matches.mjs
       - run: npx wrangler deploy --dry-run

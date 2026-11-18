@@ -3,6 +3,8 @@
 import { Container } from '@cloudflare/containers';
 
 const json = (body, status = 200) => Response.json(body, { status });
+// The API this control plane speaks: a Studio speaking another refuses it.
+const API = 1;
 
 // Compared in constant time, so how long a refusal takes says nothing about the key.
 const signedIn = (request, key) => {
@@ -19,8 +21,9 @@ export default {
     if (!signedIn(request, env.API_KEY)) return json({ error: 'Unauthorized' }, 401);
     const [, resource, id, tail] = new URL(request.url).pathname.split('/');
 
-    if (resource === 'bundles' && id) {
-      const key = `bundles/${id}`;
+    if (!resource && request.method === 'GET') return json({ api: API, runner: env.RUNNER, mftf: env.MFTF });
+    if (resource === 'snapshots' && id) {
+      const key = `snapshots/${id}`;
       if (request.method === 'HEAD') return new Response(null, { status: (await env.FILES.head(key)) ? 200 : 404 });
       if (request.method === 'PUT') return (await env.FILES.put(key, request.body), new Response(null, { status: 201 }));
     }
@@ -70,13 +73,13 @@ export class Run extends Container {
     const [, , id, tail] = url.pathname.split('/');
 
     if (tail === 'start') {
-      const { bundle, ...start } = await request.json();
-      const files = await this.env.FILES.get(`bundles/${bundle}`);
-      if (!files) return json({ error: 'Unknown bundle' }, 400);
+      const { snapshot, ...start } = await request.json();
+      const files = await this.env.FILES.get(`snapshots/${snapshot}`);
+      if (!files) return json({ error: 'Unknown snapshot' }, 400);
       try {
         await this.startAndWaitForPorts();
-        const unpacked = await this.send('/bundle', { method: 'PUT', body: await files.arrayBuffer() });
-        if (!unpacked.ok) throw new Error(`The bundle could not be unpacked: ${await unpacked.text()}`);
+        const unpacked = await this.send('/snapshot', { method: 'PUT', body: await files.arrayBuffer() });
+        if (!unpacked.ok) throw new Error(`The snapshot could not be unpacked: ${await unpacked.text()}`);
         const started = await this.send('/start', { method: 'POST', body: JSON.stringify(start) });
         if (!started.ok) throw new Error(await started.text());
       } catch (error) {
@@ -98,7 +101,8 @@ export class Run extends Container {
 
     if (request.headers.get('Upgrade') !== 'websocket') {
       const ended = this.event('ended');
-      return json({ events: this.count(), ended: Boolean(ended), code: ended?.code ?? null });
+      const status = ended ? (ended.lost ? 'lost' : 'ended') : 'running';
+      return json({ status, code: ended?.code ?? null, events: this.count() });
     }
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);

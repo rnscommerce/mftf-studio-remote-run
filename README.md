@@ -19,7 +19,7 @@ Studio closes, and Studio picks it up again when it opens.
 2. Give it a name, or keep the one offered.
 3. Enter an **API_KEY**: a long random value, such as the output of
    `openssl rand -base64 32`.
-4. Deploy. The first one takes several minutes.
+4. Deploy.
 
 It adds to your Cloudflare account a Worker, a container application and an R2
 bucket under that name, and to your GitHub or GitLab account a copy of this
