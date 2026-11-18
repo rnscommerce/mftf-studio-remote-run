@@ -1,0 +1,11 @@
+{
+  "name": "mftf-studio-remote",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-01",
+  "containers": [{ "class_name": "Run", "image": "./runner/Dockerfile", "max_instances": 5, "instance_type": "basic" }],
+  "durable_objects": { "bindings": [{ "name": "RUNS", "class_name": "Run" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Run"] }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "mftf-studio-remote" }],
+  "d1_databases": [{ "binding": "LEDGER", "database_name": "mftf-studio-remote", "database_id": "107fa7a5-025c-4e9a-988b-4144f3032a66" }],
+  "observability": { "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true } }
+}
