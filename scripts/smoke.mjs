@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import WebSocket from 'ws';
 
 const { CONTROL, API_KEY } = process.env;
 const CEST = 'generated/_generated/default/SmokeCest.php';
@@ -66,14 +67,14 @@ function events(id, from) {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(url, { headers });
     const said = [];
-    socket.addEventListener('message', ({ data }) => {
-      const event = JSON.parse(data);
+    socket.on('message', (data) => {
+      const event = JSON.parse(data.toString('utf8'));
       if (event.type === 'frame') return;
       said.push(event);
       if (event.type === 'ended') socket.close();
     });
-    socket.addEventListener('close', () => resolve(said));
-    socket.addEventListener('error', () => reject(new Error('the events could not be read')));
+    socket.on('close', () => resolve(said));
+    socket.on('error', (error) => reject(new Error(`the events could not be read: ${error.message}`)));
   });
 }
 

@@ -12,5 +12,8 @@
         "description": "What MFTF Studio signs in with. Make it long and random, and enter the same key in Studio under Environment › Remote runner."
       }
     }
+  },
+  "devDependencies": {
+    "ws": "^8.23.0"
   }
 }
